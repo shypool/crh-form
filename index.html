@@ -1,0 +1,179 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRH - Suivi Chauffeur</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="container">
+        <header class="header">
+            <img src="assets/logo-crh.jpg" alt="Logo Croix-Rouge Haitienne" class="logo">
+            <div>
+                <h1>Application Chauffeur CRH</h1>
+                <p class="subtitle">Tablette du véhicule: GPS en direct + alertes de sécurité</p>
+            </div>
+        </header>
+
+        <section class="card app-switch">
+            <a class="btn neutral" href="observer.html">Aller au tableau Observateur</a>
+            <span class="view-badge">Vue: Chauffeur</span>
+        </section>
+
+        <section class="card admin-card">
+            <h2>Espace Admin Flotte</h2>
+            <p class="subtitle">Section protégée. Accès réservé à l'administration.</p>
+            <div id="adminLockPanel" class="admin-lock-panel">
+                <form id="adminAccessForm" class="admin-access-form">
+                    <label>
+                        Mot de passe admin
+                        <input type="password" id="adminPasswordInput" placeholder="Entrer mot de passe" required>
+                    </label>
+                    <button type="submit" class="btn secondary">Déverrouiller</button>
+                </form>
+                <p id="adminAccessMessage" class="status">Section verrouillée.</p>
+            </div>
+            <div id="adminContent" class="hidden">
+                <div class="button-row">
+                    <button type="button" id="adminLockBtn" class="btn neutral">Verrouiller section admin</button>
+                </div>
+                <div class="admin-grid">
+                    <form id="adminDriverForm" class="admin-form">
+                        <label>
+                            Nouveau chauffeur
+                            <input type="text" id="adminDriverInput" placeholder="Exemple: Pierre Jean" required>
+                        </label>
+                        <button type="submit" class="btn primary">Ajouter chauffeur</button>
+                    </form>
+                    <form id="adminFieldVehicleForm" class="admin-form">
+                        <label>
+                            Nouveau mobile terrain
+                            <input type="text" id="adminFieldVehicleInput" placeholder="Exemple: MOB-05" required>
+                        </label>
+                        <button type="submit" class="btn primary">Ajouter mobile</button>
+                    </form>
+                    <form id="adminAmbulanceForm" class="admin-form">
+                        <label>
+                            Nouvelle ambulance
+                            <input type="text" id="adminAmbulanceInput" placeholder="Exemple: AMB-05" required>
+                        </label>
+                        <button type="submit" class="btn primary">Ajouter ambulance</button>
+                    </form>
+                </div>
+                <div class="admin-lists">
+                    <article class="admin-list-card">
+                        <h3>Chauffeurs</h3>
+                        <ul id="adminDriverList" class="admin-items"></ul>
+                    </article>
+                    <article class="admin-list-card">
+                        <h3>Mobiles terrain</h3>
+                        <ul id="adminFieldVehicleList" class="admin-items"></ul>
+                    </article>
+                    <article class="admin-list-card">
+                        <h3>Ambulances</h3>
+                        <ul id="adminAmbulanceList" class="admin-items"></ul>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Démarrer un Trajet</h2>
+            <form id="tripForm" class="grid-form">
+                <label>
+                    Nom du chauffeur
+                    <select id="driverName" required></select>
+                </label>
+                <label>
+                    Numéro du véhicule
+                    <select id="vehicleNumber" required></select>
+                </label>
+                <label>
+                    Point de départ
+                    <input type="text" id="origin" value="CRH Base" required>
+                </label>
+                <label>
+                    Destination
+                    <input type="text" id="destination" required>
+                </label>
+                <label>
+                    Nombre de passagers
+                    <input type="number" id="passengerCount" min="0" value="0" required>
+                </label>
+                <button type="submit" class="btn primary">Quitter la base</button>
+            </form>
+            <p id="destinationStatus" class="status-pill">Destination non définie.</p>
+            <p id="tripStatus" class="status">Aucun trajet actif.</p>
+        </section>
+
+        <section class="card ambulance-card">
+            <h2>Mission Ambulance (Victime -> Hôpital)</h2>
+            <form id="ambulanceTripForm" class="grid-form">
+                <label>
+                    Nom du chauffeur ambulance
+                    <select id="ambulanceDriverName" required></select>
+                </label>
+                <label>
+                    Numéro ambulance
+                    <select id="ambulanceVehicleNumber" required></select>
+                </label>
+                <label>
+                    Point de départ
+                    <select id="pickupType">
+                        <option value="BASE">Base CRH</option>
+                        <option value="FIXED_POINT">Point fixe</option>
+                    </select>
+                </label>
+                <label id="fixedPointField" class="hidden">
+                    Nom du point fixe
+                    <input type="text" id="fixedPointName" placeholder="Exemple: Delmas 75">
+                </label>
+                <label>
+                    Référence victime
+                    <input type="text" id="victimReference" placeholder="Nom ou code" required>
+                </label>
+                <label>
+                    Hôpital de destination
+                    <select id="hospitalDestination" required></select>
+                </label>
+                <label>
+                    Nombre de victimes
+                    <input type="number" id="victimCount" min="1" value="1" required>
+                </label>
+                <button type="submit" class="btn primary">Partir vers l'hôpital</button>
+                <button type="button" id="arrivedHospitalBtn" class="btn secondary" disabled>Arrivé à l'hôpital</button>
+            </form>
+            <p id="ambulanceTripStatus" class="status">Aucune mission ambulance active.</p>
+        </section>
+
+        <section class="card">
+            <h2>Actions de Sécurité</h2>
+            <div class="button-row">
+                <button type="button" class="btn danger" data-alert="EMERGENCY">URGENCE</button>
+                <button type="button" class="btn danger" data-alert="MAYDAY">MAYDAY</button>
+                <button type="button" class="btn warning" data-alert="ATTACK">ATTAQUE</button>
+                <button type="button" class="btn warning" data-alert="ACCIDENT">ACCIDENT</button>
+                <button type="button" id="updatePassengersBtn" class="btn neutral">Mettre à jour passagers</button>
+                <button type="button" id="finishTripBtn" class="btn secondary">Terminer le trajet</button>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Carte en Direct</h2>
+            <div id="map"></div>
+        </section>
+
+        <section class="card">
+            <h2>Événements en Direct</h2>
+            <ul id="eventLog" class="event-log"></ul>
+        </section>
+    </main>
+    <div id="driverAlertStack" class="alert-stack" aria-live="assertive" aria-atomic="false"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="script.js"></script>
+</body>
+</html>
+

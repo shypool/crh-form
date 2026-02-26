@@ -1,0 +1,129 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRH - Tableau Observateur</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="container">
+        <header class="header">
+            <img src="assets/logo-crh.jpg" alt="Logo Croix-Rouge Haitienne" class="logo">
+            <div>
+                <h1>Tableau Observateur CRH</h1>
+                <p class="subtitle">Centre de suivi en temps réel pour tous les trajets</p>
+            </div>
+        </header>
+
+        <section class="card app-switch">
+            <a class="btn neutral" href="index.html">Aller à l'app chauffeur</a>
+            <span class="view-badge">Vue: Observateur</span>
+        </section>
+
+        <section class="card metrics">
+            <article class="metric">
+                <h2 id="activeTripsCount">0</h2>
+                <p>Trajets actifs</p>
+            </article>
+            <article class="metric">
+                <h2 id="alertCount">0</h2>
+                <p>Total alertes (session)</p>
+            </article>
+            <article class="metric">
+                <h2 id="lastEventAt">-</h2>
+                <p>Dernier événement</p>
+            </article>
+        </section>
+
+        <section class="card">
+            <h2>Carte en Direct (Tous les Chauffeurs)</h2>
+            <div id="observerMap"></div>
+        </section>
+
+        <section class="card">
+            <h2>Liste des Véhicules Actifs</h2>
+            <div class="vehicle-list-head">
+                <span>Chauffeur</span>
+                <span>Véhicule</span>
+                <span>Trip ID</span>
+                <span>Destination</span>
+                <span>Passagers</span>
+                <span>Dernière Alerte</span>
+            </div>
+            <div id="activeVehicleList" class="active-vehicle-list"></div>
+        </section>
+
+        <section class="card">
+            <h2>Rapport Hebdomadaire Observateur</h2>
+            <form id="weeklyReportForm" class="weekly-report-form">
+                <label>
+                    Semaine (début)
+                    <input type="date" id="weekStartDate">
+                </label>
+                <label>
+                    Signature du coordinateur de semaine
+                    <input type="text" id="weeklyCoordinatorSignature" placeholder="Nom + signature">
+                </label>
+                <div class="weekly-days-grid">
+                    <div class="weekly-days-head">
+                        <span>Jour</span>
+                        <span>Observateur</span>
+                        <span>Signature</span>
+                    </div>
+                    <div class="weekly-day-row">
+                        <span>Lundi</span>
+                        <input type="text" id="obs_mon" placeholder="Nom observateur">
+                        <input type="text" id="sig_mon" placeholder="Signature">
+                    </div>
+                    <div class="weekly-day-row">
+                        <span>Mardi</span>
+                        <input type="text" id="obs_tue" placeholder="Nom observateur">
+                        <input type="text" id="sig_tue" placeholder="Signature">
+                    </div>
+                    <div class="weekly-day-row">
+                        <span>Mercredi</span>
+                        <input type="text" id="obs_wed" placeholder="Nom observateur">
+                        <input type="text" id="sig_wed" placeholder="Signature">
+                    </div>
+                    <div class="weekly-day-row">
+                        <span>Jeudi</span>
+                        <input type="text" id="obs_thu" placeholder="Nom observateur">
+                        <input type="text" id="sig_thu" placeholder="Signature">
+                    </div>
+                    <div class="weekly-day-row">
+                        <span>Vendredi</span>
+                        <input type="text" id="obs_fri" placeholder="Nom observateur">
+                        <input type="text" id="sig_fri" placeholder="Signature">
+                    </div>
+                    <div class="weekly-day-row">
+                        <span>Samedi</span>
+                        <input type="text" id="obs_sat" placeholder="Nom observateur">
+                        <input type="text" id="sig_sat" placeholder="Signature">
+                    </div>
+                    <div class="weekly-day-row">
+                        <span>Dimanche</span>
+                        <input type="text" id="obs_sun" placeholder="Nom observateur">
+                        <input type="text" id="sig_sun" placeholder="Signature">
+                    </div>
+                </div>
+                <button type="button" class="btn primary" id="downloadWeeklyPdfBtn">
+                    Télécharger PDF du Rapport Hebdomadaire
+                </button>
+            </form>
+        </section>
+
+        <section class="card">
+            <h2>Événements en Direct</h2>
+            <ul id="observerEventLog" class="event-log"></ul>
+        </section>
+    </main>
+
+    <div id="alertStack" class="alert-stack" aria-live="assertive" aria-atomic="false"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="observer.js"></script>
+</body>
+</html>

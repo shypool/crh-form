@@ -1,0 +1,17 @@
+.git
+.gitignore
+.vscode
+
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+backend/.venv
+backend/.pytest_cache
+backend/.mypy_cache
+
+chauffeur_mobile/build
+chauffeur_mobile/.dart_tool
+chauffeur_mobile/.flutter-plugins
+chauffeur_mobile/.flutter-plugins-dependencies
