@@ -86,6 +86,7 @@ function upsertTripBase(tripId, trip = {}) {
             origin: trip.origin || "-",
             destination: trip.destination || "-",
             passengerCount: Number.isFinite(trip.passenger_count) ? trip.passenger_count : 0,
+            distanceKm: Number.isFinite(trip.distance_km) ? trip.distance_km : 0,
             missionType: trip.mission_type || "STANDARD",
             victimReference: trip.victim_reference || "-",
             status: trip.status || "ACTIVE",
@@ -105,6 +106,7 @@ function upsertTripBase(tripId, trip = {}) {
         model.origin = trip.origin || model.origin;
         model.destination = trip.destination || model.destination;
         model.passengerCount = Number.isFinite(trip.passenger_count) ? trip.passenger_count : model.passengerCount;
+        model.distanceKm = Number.isFinite(trip.distance_km) ? trip.distance_km : model.distanceKm;
         model.missionType = trip.mission_type || model.missionType;
         model.victimReference = trip.victim_reference || model.victimReference;
         model.status = trip.status || model.status;
@@ -281,6 +283,7 @@ function handleEvent(message) {
         case "TRIP_STARTED":
             model.status = "ACTIVE";
             model.passengerCount = Number.isFinite(payload.passenger_count) ? payload.passenger_count : model.passengerCount;
+            model.distanceKm = Number.isFinite(message.distance_km) ? message.distance_km : model.distanceKm;
             model.missionType = payload.mission_type || model.missionType;
             model.victimReference = payload.victim_reference || model.victimReference;
             addLog(
@@ -292,6 +295,9 @@ function handleEvent(message) {
             if (Number.isFinite(payload.latitude) && Number.isFinite(payload.longitude)) {
                 updateTripLocation(model, payload.latitude, payload.longitude);
             }
+            if (Number.isFinite(payload.total_distance_km)) {
+                model.distanceKm = payload.total_distance_km;
+            }
             break;
         case "PASSENGER_UPDATE":
             model.passengerCount = Number.isFinite(payload.passenger_count) ? payload.passenger_count : model.passengerCount;
@@ -302,7 +308,10 @@ function handleEvent(message) {
             break;
         case "TRIP_FINISHED":
             model.status = "FINISHED";
-            addLog(`Trajet terminé (${tripId})`);
+            if (Number.isFinite(payload.total_distance_km)) {
+                model.distanceKm = payload.total_distance_km;
+            }
+            addLog(`Trajet terminé (${tripId}) | Distance: ${formatKm(model.distanceKm)}`);
             removeTripFromMap(model);
             trips.delete(tripId);
             break;
@@ -340,7 +349,8 @@ function showAlertPopup(model) {
         `<button type="button" class="alert-popup-close" aria-label="Fermer">x</button>` +
         `<p class="alert-popup-title">ALERT ${escapeHtml(model.lastAlert)}</p>` +
         `<p class="alert-popup-body">${escapeHtml(model.driverName)} | ${escapeHtml(model.vehicleNumber)}</p>` +
-        `<p class="alert-popup-body">Trip: ${escapeHtml(model.tripId)} | Dest: ${escapeHtml(model.destination)}</p>`;
+        `<p class="alert-popup-body">Trip: ${escapeHtml(model.tripId)} | Dest: ${escapeHtml(model.destination)}</p>` +
+        `<p class="alert-popup-body">Distance: ${escapeHtml(formatKm(model.distanceKm))}</p>`;
 
     const removeItem = () => {
         item.classList.add("alert-popup-out");
@@ -528,6 +538,7 @@ async function generateWeeklyPdfReport() {
     } else {
         doc.text(
             `Total: ${weeklyTripReport.total_trips} | Alertes: ${weeklyTripReport.total_alert_actions} | ` +
+            `Km: ${formatKm(weeklyTripReport.total_distance_km)} | ` +
             `Ambulance: ${weeklyTripReport.ambulance_missions} | Standard: ${weeklyTripReport.standard_missions}`,
             14,
             dy
@@ -561,6 +572,7 @@ async function generateWeeklyPdfReport() {
             dy += 4.6;
             doc.text(
                 `Passagers: ${trip.passenger_count ?? "-"} | ` +
+                `Distance: ${formatKm(trip.distance_km)} | ` +
                 `Actions de sécurité: ${alerts} | GPS updates: ${trip.location_updates ?? 0}`,
                 16,
                 dy
@@ -687,7 +699,8 @@ function updateTripLocation(model, latitude, longitude) {
         `Véhicule: ${escapeHtml(model.vehicleNumber)}<br>` +
         `Mission: ${escapeHtml(model.missionType)}<br>` +
         `Victime: ${escapeHtml(model.victimReference)}<br>` +
-        `Destination: ${escapeHtml(model.destination)}`
+        `Destination: ${escapeHtml(model.destination)}<br>` +
+        `Distance: ${escapeHtml(formatKm(model.distanceKm))}`
     );
 }
 
@@ -707,6 +720,7 @@ function redrawActiveVehicleList() {
                 <span>${escapeHtml(trip.tripId)}</span>
                 <span>${escapeHtml(trip.destination)}</span>
                 <span>${trip.passengerCount}</span>
+                <span>${escapeHtml(formatKm(trip.distanceKm))}</span>
                 <span>${escapeHtml(alertValue)}</span>
             </article>`;
         })
@@ -717,6 +731,12 @@ function refreshMetrics() {
     activeTripsCount.textContent = `${trips.size}`;
     alertCount.textContent = `${totalAlerts}`;
     lastEventAt.textContent = new Date().toLocaleTimeString();
+}
+
+function formatKm(value) {
+    const numeric = Number(value);
+    const safe = Number.isFinite(numeric) && numeric >= 0 ? numeric : 0;
+    return `${safe.toFixed(2)} km`;
 }
 
 function removeTripFromMap(model) {

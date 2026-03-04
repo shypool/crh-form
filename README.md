@@ -25,6 +25,7 @@ Sèvis yo:
 - Web chauffeur + observer: `http://localhost:8080`
 - API backend: `http://localhost:8000`
 - Healthcheck: `http://localhost:8000/health`
+- Katalog flotte pèsiste nan volume Docker `backend_data`
 
 Pou sispann:
 
@@ -52,9 +53,11 @@ docker compose down
 - Modpas admin backend:
   - env var `ADMIN_PASSWORD` (default: `SNCRH_2026`)
 - Fichier catalog flotte:
-  - env var `FLEET_STORAGE_PATH` (default: `backend/fleet_catalog.json`)
+  - env var `FLEET_STORAGE_PATH` (default lokal: `backend/fleet_catalog.json`)
+  - ak Docker Compose li ekri sou `/data/fleet_catalog.json` (volume pèsistan)
 
 ## Nòt enpòtan
-- MVP sa a sere done an memwa (li pa pèsistan).
+- Vwayaj yo toujou an memwa (yo reset lè backend rekòmanse).
+- Katalog flotte (chauffeurs/véhicules/hôpitaux) pèsistan sou disk/volume.
 - Pou pwodiksyon, ajoute PostgreSQL + PostGIS, auth JWT, ak push notifications.
 - Pou Android natif, ou ka konekte aplikasyon Kotlin/Flutter ak menm API sa a.

@@ -4,8 +4,13 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: crh-backend
+    environment:
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-SNCRH_2026}
+      FLEET_STORAGE_PATH: /data/fleet_catalog.json
     ports:
       - "8000:8000"
+    volumes:
+      - backend_data:/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
@@ -25,3 +30,6 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  backend_data:

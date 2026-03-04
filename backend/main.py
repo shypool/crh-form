@@ -1,5 +1,6 @@
 import json
 import os
+from math import asin, cos, radians, sin, sqrt
 from datetime import date, datetime, time, timedelta, timezone
 from enum import Enum
 from pathlib import Path
@@ -66,6 +67,9 @@ class TripRecord(BaseModel):
     mission_type: str = "STANDARD"
     victim_reference: str | None = None
     status: TripStatus
+    distance_km: float = Field(default=0.0, ge=0)
+    last_latitude: float | None = None
+    last_longitude: float | None = None
     created_at: datetime
     updated_at: datetime
     events: List[TripEvent] = Field(default_factory=list)
@@ -214,10 +218,23 @@ def build_event_message(
         "mission_type": trip.mission_type,
         "victim_reference": trip.victim_reference,
         "status": trip.status,
+        "distance_km": round(trip.distance_km, 3),
         "type": event_type,
         "timestamp": timestamp.isoformat(),
         "payload": payload,
     }
+
+
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    # Great-circle distance in kilometers.
+    earth_radius_km = 6371.0088
+    d_lat = radians(lat2 - lat1)
+    d_lon = radians(lon2 - lon1)
+    lat1_rad = radians(lat1)
+    lat2_rad = radians(lat2)
+    a = sin(d_lat / 2) ** 2 + cos(lat1_rad) * cos(lat2_rad) * sin(d_lon / 2) ** 2
+    c = 2 * asin(sqrt(a))
+    return earth_radius_km * c
 
 
 def verify_admin_password(x_admin_password: str | None) -> None:
@@ -438,12 +455,30 @@ async def start_trip(payload: StartTripRequest) -> Dict[str, str]:
 
 
 @app.post("/api/trips/{trip_id}/location")
-async def add_location(trip_id: str, payload: LocationRequest) -> Dict[str, str]:
+async def add_location(trip_id: str, payload: LocationRequest) -> Dict[str, Any]:
     trip = get_trip_or_404(trip_id)
     ensure_active(trip)
-    event_payload = {"latitude": payload.latitude, "longitude": payload.longitude}
+    segment_km = 0.0
+    if trip.last_latitude is not None and trip.last_longitude is not None:
+        segment_km = haversine_km(
+            trip.last_latitude,
+            trip.last_longitude,
+            payload.latitude,
+            payload.longitude,
+        )
+        trip.distance_km += segment_km
+
+    trip.last_latitude = payload.latitude
+    trip.last_longitude = payload.longitude
+
+    event_payload = {
+        "latitude": payload.latitude,
+        "longitude": payload.longitude,
+        "segment_km": round(segment_km, 3),
+        "total_distance_km": round(trip.distance_km, 3),
+    }
     await append_and_broadcast(trip, "LOCATION", event_payload)
-    return {"message": "location saved"}
+    return {"message": "location saved", "distance_km": round(trip.distance_km, 3)}
 
 
 @app.post("/api/trips/{trip_id}/alert")
@@ -468,12 +503,14 @@ async def update_passengers(
 
 
 @app.post("/api/trips/{trip_id}/finish")
-async def finish_trip(trip_id: str) -> Dict[str, str]:
+async def finish_trip(trip_id: str) -> Dict[str, Any]:
     trip = get_trip_or_404(trip_id)
     ensure_active(trip)
     trip.status = TripStatus.FINISHED
-    await append_and_broadcast(trip, "TRIP_FINISHED", {})
-    return {"message": "trip finished"}
+    await append_and_broadcast(
+        trip, "TRIP_FINISHED", {"total_distance_km": round(trip.distance_km, 3)}
+    )
+    return {"message": "trip finished", "distance_km": round(trip.distance_km, 3)}
 
 
 @app.get("/api/trips/active")
@@ -524,6 +561,7 @@ def get_weekly_report(week_start: date) -> Dict[str, Any]:
                 "alert_actions": alerts,
                 "alert_count": len(alerts),
                 "location_updates": len(location_events),
+                "distance_km": round(trip.distance_km, 3),
                 "has_security_action": len(alerts) > 0,
             }
         )
@@ -535,6 +573,9 @@ def get_weekly_report(week_start: date) -> Dict[str, Any]:
         "week_end": (end_dt - timedelta(days=1)).date().isoformat(),
         "total_trips": len(detailed_trips),
         "total_alert_actions": sum(int(item["alert_count"]) for item in detailed_trips),
+        "total_distance_km": round(
+            sum(float(item["distance_km"]) for item in detailed_trips), 3
+        ),
         "ambulance_missions": sum(1 for item in detailed_trips if item["mission_type"] == "AMBULANCE"),
         "standard_missions": sum(1 for item in detailed_trips if item["mission_type"] != "AMBULANCE"),
         "trips": detailed_trips,

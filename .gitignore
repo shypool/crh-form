@@ -1,0 +1,25 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Python backend
+backend/.venv/
+backend/__pycache__/
+backend/*.pyc
+backend/*.pyo
+backend/*.pyd
+backend/*.log
+
+# Local env files
+.env
+.env.*
+
+# Flutter local/build artifacts
+chauffeur_mobile/.dart_tool/
+chauffeur_mobile/build/
+chauffeur_mobile/.flutter-plugins
+chauffeur_mobile/.flutter-plugins-dependencies
+chauffeur_mobile/.idea/
+
+# IDE
+.idea/

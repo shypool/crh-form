@@ -151,6 +151,7 @@ class _DriverScreenState extends State<DriverScreen> {
   String _tripStatus = 'Aucun trajet actif.';
   String _ambulanceStatus = 'Aucune mission ambulance active.';
   String _destinationStatus = 'Destination non définie.';
+  double _distanceKm = 0;
   bool _destinationFound = false;
   bool _catalogLoading = false;
   String? _catalogError;
@@ -277,6 +278,15 @@ class _DriverScreenState extends State<DriverScreen> {
     final String tripId = (msg['trip_id'] ?? '').toString();
     if (type.isEmpty) return;
     if (_tripId != null && tripId.isNotEmpty && tripId != _tripId) return;
+    if (type == 'LOCATION') {
+      final dynamic payload = msg['payload'];
+      if (payload is Map<String, dynamic>) {
+        final double? distance = (payload['total_distance_km'] as num?)?.toDouble();
+        if (distance != null && mounted) {
+          setState(() => _distanceKm = distance);
+        }
+      }
+    }
     _addLog('LIVE: $type ${tripId.isEmpty ? '' : '($tripId)'}'.trim());
   }
 
@@ -352,6 +362,7 @@ class _DriverScreenState extends State<DriverScreen> {
         _tripId = body['trip_id'] as String;
         _tripMode = mode;
         _activeMissionType = missionType;
+        _distanceKm = 0;
         _tripStatus = statusMessage;
         _ambulanceStatus = mode == TripMode.ambulance
             ? '$statusMessage | ID: ${_tripId!}'
@@ -530,7 +541,14 @@ class _DriverScreenState extends State<DriverScreen> {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Échec mise à jour GPS (${response.statusCode})');
     }
-    _addLog('GPS: ${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}');
+    final Map<String, dynamic> body = jsonDecode(response.body) as Map<String, dynamic>;
+    final double? distance = (body['distance_km'] as num?)?.toDouble();
+    if (distance != null && mounted) {
+      setState(() => _distanceKm = distance);
+    }
+    _addLog(
+      'GPS: ${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)} | Distance: ${_formatKm(_distanceKm)}',
+    );
   }
 
   Future<void> _sendAlert(String alertType) async {
@@ -596,6 +614,7 @@ class _DriverScreenState extends State<DriverScreen> {
         _tripId = null;
         _tripMode = null;
         _activeMissionType = null;
+        _distanceKm = 0;
         _tripStatus = 'Aucun trajet actif.';
         _ambulanceStatus = 'Aucune mission ambulance active.';
         if (mission == 'AMBULANCE_BASE_TO_FIXED') {
@@ -620,6 +639,8 @@ class _DriverScreenState extends State<DriverScreen> {
       SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
     );
   }
+
+  String _formatKm(double value) => '${value.toStringAsFixed(2)} km';
 
   BoxDecoration _cardDecoration({Color? color, Border? border}) {
     return BoxDecoration(
@@ -776,6 +797,13 @@ class _DriverScreenState extends State<DriverScreen> {
           Text(_destinationStatus, style: TextStyle(color: _destinationFound ? const Color(0xFF1F7A5C) : const Color(0xFF8D5D11), fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           Text(_tripStatus, style: const TextStyle(fontWeight: FontWeight.w700)),
+          if (hasTrip) ...<Widget>[
+            const SizedBox(height: 6),
+            Text(
+              'Distance parcourue: ${_formatKm(_distanceKm)}',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ],
           if (_catalogError != null) ...<Widget>[
             const SizedBox(height: 6),
             Text(_catalogError!, style: const TextStyle(color: Color(0xFFB00020))),

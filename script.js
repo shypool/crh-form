@@ -77,6 +77,9 @@ let alertToneTimer = null;
 let remainingAlertBursts = 0;
 let activeTripMode = null;
 let activeAmbulanceMissionType = null;
+let activeTripStatusBase = DEFAULT_TRIP_STATUS;
+let activeAmbulanceStatusBase = DEFAULT_AMBULANCE_STATUS;
+let activeDistanceKm = 0;
 let ambulanceFlowStep = AMBULANCE_FLOW.BASE_TO_FIXED;
 let destinationTargetLatLng = null;
 const destinationGeocodeCache = new Map();
@@ -147,6 +150,31 @@ function setDestinationStatus(message, variant = "neutral") {
     destinationStatus.classList.add(
         variant === "ok" ? "is-ok" : variant === "warn" ? "is-warn" : "is-neutral"
     );
+}
+
+function formatDistanceKm(value) {
+    const numeric = Number(value);
+    const safe = Number.isFinite(numeric) && numeric >= 0 ? numeric : 0;
+    return `${safe.toFixed(2)} km`;
+}
+
+function refreshActiveTripStatusUi() {
+    if (!activeTripId) {
+        tripStatus.textContent = DEFAULT_TRIP_STATUS;
+        if (activeTripMode !== "AMBULANCE") {
+            ambulanceTripStatus.textContent = DEFAULT_AMBULANCE_STATUS;
+        }
+        return;
+    }
+
+    const distanceLabel = formatDistanceKm(activeDistanceKm);
+    if (activeTripMode === "AMBULANCE") {
+        tripStatus.textContent = `Trajet actif (ambulance): ${activeTripId} | Distance: ${distanceLabel}`;
+        ambulanceTripStatus.textContent = `${activeAmbulanceStatusBase} | ID: ${activeTripId} | Distance: ${distanceLabel}`;
+    } else {
+        tripStatus.textContent = `${activeTripStatusBase} | ID: ${activeTripId} | Distance: ${distanceLabel}`;
+        ambulanceTripStatus.textContent = DEFAULT_AMBULANCE_STATUS;
+    }
 }
 
 function setAdminAccessState(isUnlocked, message = "") {
@@ -874,6 +902,7 @@ async function startTrip(payload, options = {}) {
         activeTripId = data.trip_id;
         activeTripMode = options.isAmbulanceMission ? "AMBULANCE" : "STANDARD";
         activeAmbulanceMissionType = options.isAmbulanceMission ? payload.mission_type : null;
+        activeDistanceKm = 0;
         destinationTargetLatLng = resolveDestinationLatLng(payload.destination);
         if (!destinationTargetLatLng) {
             destinationTargetLatLng = await geocodeDestination(payload.destination);
@@ -892,13 +921,14 @@ async function startTrip(payload, options = {}) {
         addLog(`Trajet démarré: ${payload.driver_name} -> ${payload.destination}`);
         if (options.isAmbulanceMission) {
             const victimNote = options.victimReference ? ` | Victime: ${options.victimReference}` : "";
-            ambulanceTripStatus.textContent = `${options.statusMessage} | ID: ${activeTripId}${victimNote}`;
-            tripStatus.textContent = `Trajet actif (ambulance): ${activeTripId}`;
+            activeTripStatusBase = `Trajet actif (ambulance): ${activeTripId}`;
+            activeAmbulanceStatusBase = `${options.statusMessage}${victimNote}`;
             addLog(`MISSION AMBULANCE: ${payload.origin} -> ${payload.destination}${victimNote}`);
         } else {
-            tripStatus.textContent = `${options.statusMessage} | ID: ${activeTripId}`;
-            ambulanceTripStatus.textContent = DEFAULT_AMBULANCE_STATUS;
+            activeTripStatusBase = options.statusMessage;
+            activeAmbulanceStatusBase = DEFAULT_AMBULANCE_STATUS;
         }
+        refreshActiveTripStatusUi();
 
         setControls(true);
         setTripFormsDisabled(true);
@@ -921,16 +951,18 @@ function resetRoutePath() {
 }
 
 function resetTripState(options = {}) {
-    tripStatus.textContent = DEFAULT_TRIP_STATUS;
-    ambulanceTripStatus.textContent = DEFAULT_AMBULANCE_STATUS;
     stopLocationTracking();
     const completedMissionType = options.completedMissionType || activeAmbulanceMissionType || null;
     advanceAmbulanceFlow(completedMissionType);
     activeTripId = null;
     activeTripMode = null;
     activeAmbulanceMissionType = null;
+    activeTripStatusBase = DEFAULT_TRIP_STATUS;
+    activeAmbulanceStatusBase = DEFAULT_AMBULANCE_STATUS;
+    activeDistanceKm = 0;
     destinationTargetLatLng = null;
     setDestinationStatus("Destination non définie.", "neutral");
+    refreshActiveTripStatusUi();
     setControls(false);
     setTripFormsDisabled(false);
     syncAmbulanceFlowUi();
@@ -1001,7 +1033,12 @@ async function sendLocation(latitude, longitude) {
             body: JSON.stringify({ latitude, longitude })
         });
         if (!response.ok) throw new Error("Échec de mise à jour GPS.");
-        addLog(`GPS: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+        const payload = await response.json();
+        if (Number.isFinite(payload.distance_km)) {
+            activeDistanceKm = payload.distance_km;
+            refreshActiveTripStatusUi();
+        }
+        addLog(`GPS: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} | Distance: ${formatDistanceKm(activeDistanceKm)}`);
     } catch (error) {
         addLog(`ERREUR envoi GPS: ${error.message}`);
     }
@@ -1143,6 +1180,10 @@ function handleObserverMessage(message) {
         case "LOCATION":
             if (!localTripIds.has(tripId) && Number.isFinite(payload.latitude) && Number.isFinite(payload.longitude)) {
                 updateMap(payload.latitude, payload.longitude);
+            }
+            if (activeTripId === tripId && Number.isFinite(payload.total_distance_km)) {
+                activeDistanceKm = payload.total_distance_km;
+                refreshActiveTripStatusUi();
             }
             break;
         case "ALERT":
